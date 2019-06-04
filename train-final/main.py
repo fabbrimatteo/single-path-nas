@@ -467,7 +467,7 @@ def final_model_fn(features, labels, mode, params):
     saver = tf.train.Saver(restore_vars_dict)
     return tf.train.Scaffold(saver=saver)
 
-  return tf.contrib.tpu.TPUEstimatorSpec(
+  return tf.estimator.EstimatorSpec(
       mode=mode,
       loss=loss,
       train_op=train_op,
@@ -584,7 +584,7 @@ def main(unused_argv):
     save_checkpoints_steps = None
   else:
     save_checkpoints_steps = max(100, FLAGS.iterations_per_loop)
-  config = tf.contrib.tpu.RunConfig(
+  config = tf.estimator.RunConfig(
       cluster=tpu_cluster_resolver,
       model_dir=FLAGS.model_dir,
       save_checkpoints_steps=save_checkpoints_steps,
@@ -599,7 +599,7 @@ def main(unused_argv):
           .PER_HOST_V2))  # pylint: disable=line-too-long
   # Initializes model parameters.
   params = dict(steps_per_epoch=FLAGS.num_train_images / FLAGS.train_batch_size)
-  model_est = tf.contrib.tpu.TPUEstimator(
+  model_est = tf.estimator.Estimator(
       use_tpu=FLAGS.use_tpu,
       model_fn=final_model_fn,
       config=config,

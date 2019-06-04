@@ -85,6 +85,9 @@ def build_optimizer(learning_rate,
     tf.logging.info('Using RMSProp optimizer')
     optimizer = tf.train.RMSPropOptimizer(learning_rate, decay, momentum,
                                           epsilon)
+  elif optimizer_name == 'adam':
+    tf.logging.info('Using Adam optimizer')
+    optimizer = tf.train.AdamOptimizer()
   else:
     tf.logging.fatal('Unknown optimizer:', optimizer_name)
 
