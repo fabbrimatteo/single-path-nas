@@ -27,6 +27,7 @@ from tensorflow.contrib.training.python.training import evaluation
 from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.python.estimator import estimator
 from tensorflow.python.keras import backend as K
+from tensorflow.python.client import device_lib
 
 
 FLAGS = flags.FLAGS
@@ -34,7 +35,7 @@ FLAGS = flags.FLAGS
 FAKE_DATA_DIR = 'gs://cloud-tpu-test-datasets/fake_imagenet'
 
 flags.DEFINE_bool(
-    'use_tpu', default=True,
+    'use_tpu', default=False,
     help=('Use TPU to execute the model for training and evaluation. If'
           ' --use_tpu=false, will use whatever devices are available to'
           ' TensorFlow by default (e.g. CPU and GPU)'))
@@ -78,7 +79,7 @@ flags.DEFINE_string(
     help='One of {"train_and_eval", "train", "eval"}.')
 
 flags.DEFINE_integer(
-    'train_steps', default=437898, 
+    'train_steps', default=4378980,
     help=('The number of steps to use for training. Default is 437898 steps'
           ' which is approximately 350 epochs at batch size 1024. This flag'
           ' should be adjusted according to the --train_batch_size flag.'))
@@ -87,10 +88,10 @@ flags.DEFINE_integer(
     'input_image_size', default=224, help='Input image size.')
 
 flags.DEFINE_integer(
-    'train_batch_size', default=1024, help='Batch size for training.')
+    'train_batch_size', default=128, help='Batch size for training.')
 
 flags.DEFINE_integer(
-    'eval_batch_size', default=1024, help='Batch size for evaluation.')
+    'eval_batch_size', default=128, help='Batch size for evaluation.')
 
 flags.DEFINE_integer(
     'num_train_images', default=1281167, help='Size of training data set.')
@@ -194,7 +195,7 @@ flags.DEFINE_float(
     help=('Momentum parameter used in the MomentumOptimizer.'))
 
 flags.DEFINE_float(
-    'moving_average_decay', default=0.9999,
+    'moving_average_decay', default=0, #0.9999,
     help=('Moving average decay rate.'))
 
 flags.DEFINE_float(
@@ -242,6 +243,11 @@ LR_SCHEDULE = [    # (multiplier, epoch to start) tuples
 # range of [0, 1]
 MEAN_RGB = [0.485 * 255, 0.456 * 255, 0.406 * 255]
 STDDEV_RGB = [0.229 * 255, 0.224 * 255, 0.225 * 255]
+
+
+def get_available_gpus():
+    local_device_protos = device_lib.list_local_devices()
+    return [x.name for x in local_device_protos if x.device_type == 'GPU']
 
 
 def final_model_fn(features, labels, mode, params):
@@ -467,13 +473,19 @@ def final_model_fn(features, labels, mode, params):
     saver = tf.train.Saver(restore_vars_dict)
     return tf.train.Scaffold(saver=saver)
 
+  if metric_fn is None:
+      eval_metric_ops = None
+  else:
+      eval_metric_ops = metric_fn(labels, logits)
+
   return tf.estimator.EstimatorSpec(
       mode=mode,
       loss=loss,
       train_op=train_op,
-      host_call=host_call,
-      eval_metrics=eval_metrics,
-      scaffold_fn=_scaffold_fn if has_moving_average_decay else None)
+      # host_call=host_call,
+      eval_metric_ops=eval_metric_ops,
+      # scaffold_fn=_scaffold_fn if has_moving_average_decay else None
+  )
 
 
 def _verify_non_empty_string(value, field_name):
@@ -584,28 +596,54 @@ def main(unused_argv):
     save_checkpoints_steps = None
   else:
     save_checkpoints_steps = max(100, FLAGS.iterations_per_loop)
+
+  NUM_GPUS = len(get_available_gpus())
+  distribution = tf.contrib.distribute.MirroredStrategy(num_gpus=NUM_GPUS)
+  gpu_options = tf.GPUOptions(allow_growth=True)
+
+  # config = tf.contrib.tpu.RunConfig(
+  #     cluster=tpu_cluster_resolver,
+  #     model_dir=FLAGS.model_dir,
+  #     save_checkpoints_steps=save_checkpoints_steps,
+  #     log_step_count_steps=FLAGS.log_step_count_steps,
+  #     session_config=tf.ConfigProto(
+  #         graph_options=tf.GraphOptions(
+  #             rewrite_options=rewriter_config_pb2.RewriterConfig(
+  #                 disable_meta_optimizer=True))),
+  #     tpu_config=tf.contrib.tpu.TPUConfig(
+  #         iterations_per_loop=FLAGS.iterations_per_loop,
+  #         per_host_input_for_training=tf.contrib.tpu.InputPipelineConfig
+  #         .PER_HOST_V2))  # pylint: disable=line-too-long
+
   config = tf.estimator.RunConfig(
-      cluster=tpu_cluster_resolver,
+      # cluster=tpu_cluster_resolver,
       model_dir=FLAGS.model_dir,
       save_checkpoints_steps=save_checkpoints_steps,
       log_step_count_steps=FLAGS.log_step_count_steps,
       session_config=tf.ConfigProto(
           graph_options=tf.GraphOptions(
               rewrite_options=rewriter_config_pb2.RewriterConfig(
-                  disable_meta_optimizer=True))),
-      tpu_config=tf.contrib.tpu.TPUConfig(
-          iterations_per_loop=FLAGS.iterations_per_loop,
-          per_host_input_for_training=tf.contrib.tpu.InputPipelineConfig
-          .PER_HOST_V2))  # pylint: disable=line-too-long
+                  disable_meta_optimizer=True)), gpu_options=gpu_options),
+      train_distribute=distribution,
+      # tpu_config=tf.contrib.tpu.TPUConfig(
+      #     iterations_per_loop=FLAGS.iterations_per_loop,
+      #     per_host_input_for_training=tf.contrib.tpu.InputPipelineConfig
+      #     .PER_HOST_V2)
+  )
   # Initializes model parameters.
-  params = dict(steps_per_epoch=FLAGS.num_train_images / FLAGS.train_batch_size)
+  # params = dict(steps_per_epoch=FLAGS.num_train_images / FLAGS.train_batch_size)
+  # model_est = tf.estimator.Estimator(
+  #     use_tpu=FLAGS.use_tpu,
+  #     model_fn=final_model_fn,
+  #     config=config,
+  #     train_batch_size=FLAGS.train_batch_size,
+  #     eval_batch_size=FLAGS.eval_batch_size,
+  #     export_to_tpu=FLAGS.export_to_tpu,
+  #     params=params)
+  params = dict(steps_per_epoch=FLAGS.num_train_images / FLAGS.train_batch_size, batch_size=FLAGS.train_batch_size)
   model_est = tf.estimator.Estimator(
-      use_tpu=FLAGS.use_tpu,
       model_fn=final_model_fn,
       config=config,
-      train_batch_size=FLAGS.train_batch_size,
-      eval_batch_size=FLAGS.eval_batch_size,
-      export_to_tpu=FLAGS.export_to_tpu,
       params=params)
 
   # Input pipelines are slightly different (with regards to shuffling and

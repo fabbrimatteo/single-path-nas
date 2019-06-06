@@ -119,7 +119,7 @@ flags.DEFINE_bool(
           ' keep up with the TPU-side computation.'))
 
 flags.DEFINE_integer(
-    'iterations_per_loop', default=2,
+    'iterations_per_loop', default=1251,
     help=('Number of steps to run on TPU before outfeeding metrics to the CPU.'
           ' If the number of iterations in the loop would exceed the number of'
           ' train steps, the loop will exit before reaching'
@@ -453,7 +453,7 @@ def nas_model_fn(features, labels, mode, params):
                                 sum_label_ = label_ + str(idx + 1)
                                 tf.contrib.summary.scalar(sum_label_, t_tensor[0], step=gs)
 
-                        # return tf.contrib.summary.all_summary_ops()
+                        return tf.contrib.summary.all_summary_ops()
 
 
             # To log the loss, current learning rate, and epoch for Tensorboard, the
@@ -539,59 +539,75 @@ def nas_model_fn(features, labels, mode, params):
     else:
         eval_metric_ops = metric_fn(labels, logits)
 
-    host_call_fn(gs_t, loss_t, lr_t, runtime_t, t_list[0], t_list[1], t_list[2], t_list[3], t_list[4], t_list[5],
-                 t_list[6], t_list[7], t_list[8], t_list[9], t_list[10], t_list[11], t_list[12], t_list[13], t_list[14],
-                 t_list[15], t_list[16], t_list[17], t_list[18], t_list[19], t_list[20], t_list[21], t_list[22],
-                 t_list[23], t_list[24], t_list[25], t_list[26], t_list[27], t_list[28], t_list[29], t_list[30],
-                 t_list[31], t_list[32], t_list[33], t_list[34], t_list[35], t_list[36], t_list[37], t_list[38],
-                 t_list[39], t_list[40], t_list[41], t_list[42], t_list[43], t_list[44], t_list[45], t_list[46],
-                 t_list[47], t_list[48], t_list[49], t_list[50], t_list[51], t_list[52], t_list[53], t_list[54],
-                 t_list[55], t_list[56], t_list[57], t_list[58], t_list[59])
+    if is_training:
+        gs, loss, lr, runtime,t5x5_1, t50c_1, t100c_1, t5x5_2, t50c_2, t100c_2,        t5x5_3, t50c_3, t100c_3, t5x5_4, t50c_4, t100c_4,        t5x5_5, t50c_5, t100c_5, t5x5_6, t50c_6, t100c_6,        t5x5_7, t50c_7, t100c_7, t5x5_8, t50c_8, t100c_8,        t5x5_9, t50c_9, t100c_9, t5x5_10, t50c_10, t100c_10,        t5x5_11, t50c_11, t100c_11, t5x5_12, t50c_12, t100c_12,        t5x5_13, t50c_13, t100c_13, t5x5_14, t50c_14, t100c_14,        t5x5_15, t50c_15, t100c_15, t5x5_16, t50c_16, t100c_16,        t5x5_17, t50c_17, t100c_17, t5x5_18, t50c_18, t100c_18,        t5x5_19, t50c_19, t100c_19, t5x5_20, t50c_20, t100c_20 = gs_t, loss_t, lr_t, runtime_t, t_list[0], t_list[1], t_list[2], t_list[3], t_list[4], t_list[5],                                  t_list[6], t_list[7], t_list[8], t_list[9], t_list[10], t_list[11], t_list[12], t_list[13], t_list[14],                                  t_list[15], t_list[16], t_list[17], t_list[18], t_list[19], t_list[20], t_list[21], t_list[22],                                  t_list[23], t_list[24], t_list[25], t_list[26], t_list[27], t_list[28], t_list[29], t_list[30],                                  t_list[31], t_list[32], t_list[33], t_list[34], t_list[35], t_list[36], t_list[37], t_list[38],                                  t_list[39], t_list[40], t_list[41], t_list[42], t_list[43], t_list[44], t_list[45], t_list[46],                                  t_list[47], t_list[48], t_list[49], t_list[50], t_list[51], t_list[52], t_list[53], t_list[54],                                  t_list[55], t_list[56], t_list[57], t_list[58], t_list[59]
 
+        gs = gs[0]
+
+        t_list = [[t5x5_1, t50c_1, t100c_1], [t5x5_2, t50c_2, t100c_2],
+                  [t5x5_3, t50c_3, t100c_3], [t5x5_4, t50c_4, t100c_4],
+                  [t5x5_5, t50c_5, t100c_5], [t5x5_6, t50c_6, t100c_6],
+                  [t5x5_7, t50c_7, t100c_7], [t5x5_8, t50c_8, t100c_8],
+                  [t5x5_9, t50c_9, t100c_9], [t5x5_10, t50c_10, t100c_10],
+                  [t5x5_11, t50c_11, t100c_11], [t5x5_12, t50c_12, t100c_12],
+                  [t5x5_13, t50c_13, t100c_13], [t5x5_14, t50c_14, t100c_14],
+                  [t5x5_15, t50c_15, t100c_15], [t5x5_16, t50c_16, t100c_16],
+                  [t5x5_17, t50c_17, t100c_17], [t5x5_18, t50c_18, t100c_18],
+                  [t5x5_19, t50c_19, t100c_19], [t5x5_20, t50c_20, t100c_20]]
+
+        # Host call fns are executed FLAGS.iterations_per_loop times after one
+        # TPU loop is finished, setting max_queue value to the same as number of
+        # iterations will make the summary writer only flush the data to storage
+        # once per loop.
+        # with tf.contrib.summary.create_file_writer(
+        #         '/u/big/home/fabbrim/log/single-path-nas/lambda-val-0.020-chinook-2/events', max_queue=FLAGS.iterations_per_loop).as_default():
+        #     with tf.contrib.summary.always_record_summaries():
+        tf.summary.scalar('loss', loss[0])
+        tf.summary.scalar('learning_rate', lr[0])
+        # tf.contrib.summary.scalar('current_epoch', ce[0], step=gs)
+        tf.summary.scalar('runtime_ms', runtime[0])
+        for idx, t_ in enumerate(t_list):
+            for label_, t_tensor in zip(['t5x5_', 't50c_', 't100c_'], t_):
+                sum_label_ = label_ + str(idx + 1)
+                tf.summary.scalar(sum_label_, t_tensor[0])
+
+        # tf.contrib.summary.all_summary_ops()
+
+    # writer = tf.contrib.summary.create_file_writer(FLAGS.model_dir, max_queue=FLAGS.iterations_per_loop)
+    # writer.set_as_default()
+
+    # summary_op = host_call_fn(gs_t, loss_t, lr_t, runtime_t, t_list[0], t_list[1], t_list[2], t_list[3], t_list[4], t_list[5],
+    #                               t_list[6], t_list[7], t_list[8], t_list[9], t_list[10], t_list[11], t_list[12], t_list[13], t_list[14],
+    #                               t_list[15], t_list[16], t_list[17], t_list[18], t_list[19], t_list[20], t_list[21], t_list[22],
+    #                               t_list[23], t_list[24], t_list[25], t_list[26], t_list[27], t_list[28], t_list[29], t_list[30],
+    #                               t_list[31], t_list[32], t_list[33], t_list[34], t_list[35], t_list[36], t_list[37], t_list[38],
+    #                               t_list[39], t_list[40], t_list[41], t_list[42], t_list[43], t_list[44], t_list[45], t_list[46],
+    #                               t_list[47], t_list[48], t_list[49], t_list[50], t_list[51], t_list[52], t_list[53], t_list[54],
+    #                               t_list[55], t_list[56], t_list[57], t_list[58], t_list[59])
+    #
     # summary_hook = tf.train.SummarySaverHook(
     #     FLAGS.iterations_per_loop,
     #     output_dir=FLAGS.model_dir,
-    #     summary_op=summary_op)
+    #     summary_op=summary_op,
+    # )
+    # train_hook_list = None
+    # if is_training:
+    #     train_hook_list = []
+    #     train_tensors_log = {'accuracy': loss_t[0],
+    #                          'lossetta': loss_t[0],
+    #                          'zio': loss_t[0]}
+    #     train_hook_list.append(tf.train.LoggingTensorHook(
+    #         tensors=train_tensors_log, every_n_iter=5))
 
-    # gs, loss, lr, runtime,t5x5_1, t50c_1, t100c_1, t5x5_2, t50c_2, t100c_2,t5x5_3, t50c_3, t100c_3, t5x5_4, t50c_4, t100c_4,t5x5_5, t50c_5, t100c_5, t5x5_6, t50c_6, t100c_6,t5x5_7, t50c_7, t100c_7, t5x5_8, t50c_8, t100c_8,t5x5_9, t50c_9, t100c_9, t5x5_10, t50c_10, t100c_10,t5x5_11, t50c_11, t100c_11, t5x5_12, t50c_12, t100c_12,t5x5_13, t50c_13, t100c_13, t5x5_14, t50c_14, t100c_14,    t5x5_15, t50c_15, t100c_15, t5x5_16, t50c_16, t100c_16,    t5x5_17, t50c_17, t100c_17, t5x5_18, t50c_18, t100c_18,    t5x5_19, t50c_19, t100c_19, t5x5_20, t50c_20, t100c_20 = gs_t, loss_t, lr_t, runtime_t, t_list[0], t_list[1], t_list[2], t_list[3], t_list[4], t_list[5],                 t_list[6], t_list[7], t_list[8], t_list[9], t_list[10], t_list[11], t_list[12], t_list[13], t_list[14],                 t_list[15], t_list[16], t_list[17], t_list[18], t_list[19], t_list[20], t_list[21], t_list[22],                 t_list[23], t_list[24], t_list[25], t_list[26], t_list[27], t_list[28], t_list[29], t_list[30],                 t_list[31], t_list[32], t_list[33], t_list[34], t_list[35], t_list[36], t_list[37], t_list[38],                 t_list[39], t_list[40], t_list[41], t_list[42], t_list[43], t_list[44], t_list[45], t_list[46],                 t_list[47], t_list[48], t_list[49], t_list[50], t_list[51], t_list[52], t_list[53], t_list[54],                 t_list[55], t_list[56], t_list[57], t_list[58], t_list[59]
-    # gs = gs[0]
-    #
-    # t_list = [[t5x5_1, t50c_1, t100c_1], [t5x5_2, t50c_2, t100c_2],
-    #           [t5x5_3, t50c_3, t100c_3], [t5x5_4, t50c_4, t100c_4],
-    #           [t5x5_5, t50c_5, t100c_5], [t5x5_6, t50c_6, t100c_6],
-    #           [t5x5_7, t50c_7, t100c_7], [t5x5_8, t50c_8, t100c_8],
-    #           [t5x5_9, t50c_9, t100c_9], [t5x5_10, t50c_10, t100c_10],
-    #           [t5x5_11, t50c_11, t100c_11], [t5x5_12, t50c_12, t100c_12],
-    #           [t5x5_13, t50c_13, t100c_13], [t5x5_14, t50c_14, t100c_14],
-    #           [t5x5_15, t50c_15, t100c_15], [t5x5_16, t50c_16, t100c_16],
-    #           [t5x5_17, t50c_17, t100c_17], [t5x5_18, t50c_18, t100c_18],
-    #           [t5x5_19, t50c_19, t100c_19], [t5x5_20, t50c_20, t100c_20]]
-    #
-    # # Host call fns are executed FLAGS.iterations_per_loop times after one
-    # # TPU loop is finished, setting max_queue value to the same as number of
-    # # iterations will make the summary writer only flush the data to storage
-    # # once per loop.
-    # with tf.contrib.summary.create_file_writer(
-    #         FLAGS.model_dir, max_queue=FLAGS.iterations_per_loop).as_default():
-    #     with tf.contrib.summary.always_record_summaries():
-    #         tf.contrib.summary.scalar('loss', loss[0], step=gs)
-    #         tf.contrib.summary.scalar('learning_rate', lr[0], step=gs)
-    #         # tf.contrib.summary.scalar('current_epoch', ce[0], step=gs)
-    #         tf.contrib.summary.scalar('runtime_ms', runtime[0], step=gs)
-    #         for idx, t_ in enumerate(t_list):
-    #             for label_, t_tensor in zip(['t5x5_', 't50c_', 't100c_'], t_):
-    #                 sum_label_ = label_ + str(idx + 1)
-    #                 tf.contrib.summary.scalar(sum_label_, t_tensor[0], step=gs)
-    #
-    #         # return tf.contrib.summary.all_summary_ops()
-
+    # if is_training:
+    #     tf.summary.scalar("dai", loss_t[0])
 
     return tf.estimator.EstimatorSpec(
         mode=mode,
         loss=loss,
         train_op=train_op,
         # host_call=host_call,
-        # training_hooks=[summary_hook],
+        # training_chief_hooks=[summary_hook],
         eval_metric_ops=eval_metric_ops,
         # scaffold_fn=_scaffold_fn if has_moving_average_decay else None
     )
@@ -737,11 +753,13 @@ def main(unused_argv):
         model_dir=FLAGS.model_dir,
         save_checkpoints_steps=save_checkpoints_steps,
         log_step_count_steps=FLAGS.log_step_count_steps,
-        session_config=tf.ConfigProto(
+        session_config=tf.ConfigProto(allow_soft_placement=True,
             graph_options=tf.GraphOptions(
                 rewrite_options=rewriter_config_pb2.RewriterConfig(
                     disable_meta_optimizer=True)), gpu_options=gpu_options),
         train_distribute=distribution,
+        # log_step_count_steps=None,
+        # save_summary_steps=None
         # tpu_config=tf.contrib.tpu.TPUConfig(
         #     iterations_per_loop=FLAGS.iterations_per_loop,
         #     per_host_input_for_training=tf.contrib.tpu.InputPipelineConfig
