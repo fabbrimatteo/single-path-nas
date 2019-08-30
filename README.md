@@ -1,20 +1,23 @@
 # Single-Path NAS: Designing Hardware-Efficient ConvNets in less than 4 Hours
 
 ## Requirements
-* Access to Cloud TPUs ([Official Cloud TPU Tutorial](https://cloud.google.com/tpu/docs/tutorials/mnasnet))
-* Tensorflow 1.12
 * Python 3.5+
+* CUDA 9.0
+* NCCL 2.3.7
 
-## Updates
-* 04/05/19: Single-Path NAS search code released.
-
-## Contents
-
+## Quick Start
+* Create and activate the conda environment: 
+  ```bash
+  conda env create -f environment.yml
+  source activate sp-nas
+  ```
+* Add environment variables:
+  ```bash
+  export LD_LIBRARY_PATH=/usr/local/nccl-2.3.7/lib:/usr/local/cuda-9.0/lib64
+  export PATH=/usr/local/cuda-9.0/bin:$PATH
+  ``` 
 * NAS Search [nas-search](/nas-search/): Employ NAS search 
-* Runtime Modeling [runtime-modeling](/runtime-modeling/): Generate ConvNets to profile
 * Train ConvNet [train-final](/train-final/): Fully train found ConvNet on ImageNet
-
-
 
 ## Citation
 Please cite the Single-Path paper ([link](https://arxiv.org/abs/1904.02877)) 

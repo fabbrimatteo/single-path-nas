@@ -100,7 +100,7 @@ flags.DEFINE_integer(
     'num_eval_images', default=50000, help='Size of evaluation data set.')
 
 flags.DEFINE_integer(
-    'steps_per_eval', default=18765,
+    'steps_per_eval', default=187650,
     help=('Controls how often evaluation is performed. Since evaluation is'
           ' fairly expensive, it is advised to evaluate as infrequently as'
           ' possible (i.e. up to --train_steps, which evaluates the model only'
@@ -433,7 +433,7 @@ def final_model_fn(features, labels, mode, params):
       # Load moving average variables for eval.
       restore_vars_dict = ema.variables_to_restore(ema_vars)
 
-  eval_metrics = None
+  metric_fn = None
   if mode == tf.estimator.ModeKeys.EVAL:
     def metric_fn(labels, logits):
       """Evaluation metric function. Evaluates accuracy.
@@ -477,6 +477,19 @@ def final_model_fn(features, labels, mode, params):
       eval_metric_ops = None
   else:
       eval_metric_ops = metric_fn(labels, logits)
+
+  if is_training:
+      gs, loss, lr, ce = gs_t, loss_t, lr_t, ce_t
+      gs = gs[0]
+      # Host call fns are executed FLAGS.iterations_per_loop times after one
+      # TPU loop is finished, setting max_queue value to the same as number of
+      # iterations will make the summary writer only flush the data to storage
+      # once per loop.
+      tf.summary.scalar('loss', loss[0])
+      tf.summary.scalar('learning_rate', lr[0])
+      tf.summary.scalar('current_epoch', ce[0])
+
+      # return tf.contrib.summary.all_summary_ops()
 
   return tf.estimator.EstimatorSpec(
       mode=mode,
@@ -587,10 +600,10 @@ def export(est, export_dir, post_quantize=True):
 
 
 def main(unused_argv):
-  tpu_cluster_resolver = tf.contrib.cluster_resolver.TPUClusterResolver(
-      FLAGS.tpu if (FLAGS.tpu or FLAGS.use_tpu) else '',
-      zone=FLAGS.tpu_zone,
-      project=FLAGS.gcp_project)
+  # tpu_cluster_resolver = tf.contrib.cluster_resolver.TPUClusterResolver(
+  #     FLAGS.tpu if (FLAGS.tpu or FLAGS.use_tpu) else '',
+  #     zone=FLAGS.tpu_zone,
+  #     project=FLAGS.gcp_project)
 
   if FLAGS.use_async_checkpointing:
     save_checkpoints_steps = None
@@ -620,7 +633,7 @@ def main(unused_argv):
       model_dir=FLAGS.model_dir,
       save_checkpoints_steps=save_checkpoints_steps,
       log_step_count_steps=FLAGS.log_step_count_steps,
-      session_config=tf.ConfigProto(
+      session_config=tf.ConfigProto(allow_soft_placement=True,
           graph_options=tf.GraphOptions(
               rewrite_options=rewriter_config_pb2.RewriterConfig(
                   disable_meta_optimizer=True)), gpu_options=gpu_options),

@@ -16,18 +16,17 @@ from the original MnasNet-TPU repo.
 To setup the ImageNet follow the instructions from [here](https://cloud.google.com/tpu/docs/tutorials/amoebanet#full-dataset)  
 
 
-2. Setting up TPU-related ENV variables:
+2. Setting up ENV variables:
 ```
-export STORAGE_BUCKET=gs://{your-bucket-name-here} 
-export DATA_DIR=${STORAGE_BUCKET}/{imagenet-dataset-location}
-export PARSE_DIR=${STORAGE_BUCKET}/model-single-path-search
-export OUTPUT_DIR=${STORAGE_BUCKET}/model-single-path-train-final
-export TPU_NAME=node-{your-tpu-name}
+export DATA_DIR=${imagenet-dataset-location}
+export OUTPUT_DIR=${output-location}/model-single-path-train-final
+export PARSE_DIR=${output-location}/model-single-path-search
+export CUDA_VISIBLE_DEVICES=${gpu-ids}
 ```
 
 3. Launch training:
 ```
-lambda_val=0.020; python main.py --tpu=$TPU_NAME --data_dir=$DATA_DIR --model_dir=${OUTPUT_DIR}/lambda-val-${lambda_val}/ --parse_search_dir=${PARSE_DIR}/lambda-val-${lambda_val}/
+lambda_val=0.020; python main.py --data_dir=$DATA_DIR --model_dir=${OUTPUT_DIR}/lambda-val-${lambda_val}/ --parse_search_dir=${PARSE_DIR}/lambda-val-${lambda_val}/
 
 ```
 
