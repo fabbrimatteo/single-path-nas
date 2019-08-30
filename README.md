@@ -4,6 +4,7 @@
 * Python 3.5+
 * CUDA 9.0
 * NCCL 2.3.7
+* Conda 4.6.12
 
 ## Quick Start
 * Create and activate the conda environment: 
